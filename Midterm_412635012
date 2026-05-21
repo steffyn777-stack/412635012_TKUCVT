@@ -1,0 +1,15 @@
+midterm_<412635012>/
+├── README.md
+├── network-diagram.png        # 或直接用 Mermaid 寫在 README 裡
+
+├── screenshots/
+│   ├── ssh-proxyjump.png
+│   ├── docker-running.png
+│   ├── fault-A-before.png
+│   ├── fault-A-during.png
+│   ├── fault-A-after.png
+│   ├── fault-B-before.png
+│   ├── fault-B-during.png
+│   └── fault-B-after.png
+├── Dockerfile                 # Bonus 1 才需要
+└── index.html                 # Bonus 1 才需要
