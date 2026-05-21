@@ -1,0 +1,119 @@
+# W04｜Linux 系統基礎：檔案系統、權限、程序與服務管理
+
+## FHS 路徑表
+
+| FHS 路徑 | FHS 定義 | Docker 用途 |
+|---|---|---|
+| /etc/docker/ | Stores configuration files for Docker | configure Docker daemon settings|
+| /var/lib/docker/ | Stores persistent application data | Stores Docker images, containers, volumes, and metadata |
+| /usr/bin/docker | Stores executable programs | Docker CLI command used to interact with Docker |
+| /run/docker.sock | Stores runtime process | communication between Docker CLI and Docker daemon |
+
+## Docker 系統資訊
+
+- Storage Driver： Storage Driver: overlayfs
+- Docker Root Dir：Docker Root Dir: /var/lib/docker
+- 拉取映像前 /var/lib/docker/ 大小：324K    /var/lib/docker
+
+- 拉取映像後 /var/lib/docker/ 大小：328K    /var/lib/docker
+
+## 權限結構
+
+### Docker Socket 權限解讀
+（貼上 `ls -la /var/run/docker.sock` 輸出，逐欄說明 owner/group/others 的權限）
+srw-rw---- 1 root docker 0 Apr 23 09:45 /var/run/docker.sock
+
+- s: indicates this is a socket file used for communication between Docker CLI and Docker daemon
+- rw- (owner): the owner (root) has read and write permission
+- rw- (group): the group (docker) has read and write permission
+- --- (others): other users have no permission
+- owner: root
+- group: docker
+
+### 使用者群組
+（貼上 `id` 輸出，說明是否包含 docker 群組）
+uid=1000(steffyn) gid=1000(steffyn) groups=1000(steffyn),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),100(users),114(lpadmin)
+since i am not in the docker group, i need to use sudo.
+
+### 安全意涵
+（用自己的話說明為什麼 docker group ≈ root，安全示範的觀察結果）
+Docker group is similar to root because it allows full control of Docker, we saw that without docker group access, sudo is required, proving that Docker access is highly privileged.
+
+
+## 程序與服務管理
+
+### systemctl status docker
+（貼上 `systemctl status docker` 輸出）
+● docker.service - Docker Application Container Engine
+     Loaded: loaded (/usr/lib/systemd/system/docker.service; enabled; preset: enabled)
+     Active: active (running) since Thu 2026-04-23 09:46:03 CST; 11h ago
+TriggeredBy: ● docker.socket
+       Docs: https://docs.docker.com
+   Main PID: 1537 (dockerd)
+      Tasks: 14
+     Memory: 136.8M (peak: 167.2M)
+        CPU: 2min 34.640s
+     CGroup: /system.slice/docker.service
+             └─1537 /usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+
+
+### journalctl 日誌分析
+（貼上 `journalctl -u docker --since "1 hour ago"` 的重點摘錄，說明看到什麼事件）
+steffyn@server-b:~$ journalctl -u docker --since "1 hour ago"
+Apr 23 20:53:11 server-b dockerd[1537]: time="2026-04-23T20:53:11.573027484+08:00" level=error msg="failed to cleanup \>
+Apr 23 20:53:11 server-b dockerd[1537]: time="2026-04-23T20:53:11.573301350+08:00" level=info msg="Cancel with lease, l>
+Apr 23 20:54:43 server-b dockerd[1537]: time="2026-04-23T20:54:43.839058535+08:00" level=info msg="image pulled" digest>
+lines 1-3/3 (END)
+
+From the logs, I observed that the Docker daemon recorded both informational and error events. 
+
+### CLI vs Daemon 差異
+（用自己的話說明兩者的差異，為什麼 `docker --version` 正常不代表 Docker 能用）
+CLI is the command tool, while the daemon is the engine that runs Docker. docker --version works because it only checks the CLI, but commands like docker ps need the daemon to be running.
+
+## 環境變數
+
+- $PATH：（貼上內容）
+/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+
+- which docker：（填入路徑）
+/usr/bin/docker
+
+- 容器內外環境變數差異觀察：（簡述）
+The host has full system environment variables, while the container has a limited and isolated environment.
+
+## 故障場景一：停止 Docker Daemon
+
+| 項目 | 故障前 | 故障中 | 回復後 |
+|---|---|---|---|
+| systemctl status docker | active | （填入） | （填入） |
+| docker --version | 正常 | （填入） | （填入） |
+| docker ps | 正常 | Cannot connect | （填入） |
+| ps aux grep dockerd | 有 process | （填入） | （填入） |
+
+## 故障場景二：破壞 Socket 權限
+
+| 項目 | 故障前 | 故障中 | 回復後 |
+|---|---|---|---|
+| ls -la docker.sock 權限 | srw-rw---- | （填入） | （填入） |
+| docker ps（不加 sudo） | 正常 | permission denied | （填入） |
+| sudo docker ps | 正常 | （填入） | （填入） |
+| systemctl status docker | active | （填入） | （填入） |
+
+## 錯誤訊息比較
+
+| 錯誤訊息 | 根因 | 診斷方向 |
+|---|---|---|
+| Cannot connect to the Docker daemon | （填入） | （填入） |
+| permission denied…docker.sock | （填入） | （填入） |
+
+（用自己的話說明兩種錯誤的差異，各自指向什麼排錯方向）
+
+## 排錯紀錄
+- 症狀：
+- 診斷：（你首先查了什麼？）
+- 修正：（做了什麼改動？）
+- 驗證：（如何確認修正有效？）
+
+## 設計決策
+（說明本週至少 1 個技術選擇與取捨，例如：為什麼教學環境用 `usermod` 加 group 而不是每次 sudo？這個選擇的風險是什麼？）
