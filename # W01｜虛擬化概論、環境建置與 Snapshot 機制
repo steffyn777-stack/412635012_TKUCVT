@@ -1,0 +1,155 @@
+# W01｜虛擬化概論、環境建置與 Snapshot 機制
+
+## 環境資訊
+- Host OS：Windows 11
+- VM 名稱：steffyn
+- Ubuntu 版本：Ubuntu 24.04.4 lts
+- Docker 版本：Docker version 29.3.0 , build 5927d80 
+- Docker Compose 版本：v5.1.1
+
+## VM 資源配置驗證
+
+| 項目 | VMware 設定值 | VM 內命令 | VM 內輸出 |
+|---   |---|---|---|
+| CPU | 2 vCPU | `lscpu \| grep "^CPU(s)"` | 15 |
+| 記憶體 | 4 GB | `free -h \| grep Mem` | Mem: 13Gi  1.8Gi  7.1Gi  51Mi  4.9Gi  11Gi|
+| 磁碟 | 40 GB | `df -h /` | size 25G , used 14G , avail 10G ,use% 58% |
+| Hypervisor | VMware | `lscpu \| grep Hypervisor` | KVM |
+
+## 四層驗收證據
+- [done] ① Repository：`cat /etc/apt/sources.list.d/docker.list` noble stable
+- [done] ② Engine：`dpkg -l | grep docker-ce` ii  
+docker-ce                                     5:29.3.0-1~ubuntu.24.04~noble            amd64        Docker: the open-source application container engine
+ii  docker-ce-cli                                 5:29.3.0-1~ubuntu.24.04~noble            amd64        Docker CLI: the open-source application container engine
+ii  docker-ce-rootless-extras                     5:29.3.0-1~ubuntu.24.04~noble            amd64        Rootless support for Docker.
+
+- [done] ③ Daemon：`sudo systemctl status docker` active(running)
+
+- [done] ④ 端到端：`sudo docker run hello-world`
+Hello from Docker!
+This message shows that your installation appears to be working correctly.
+
+To generate this message, Docker took the following steps:
+ 1. The Docker client contacted the Docker daemon.
+ 2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
+    (amd64)
+ 3. The Docker daemon created a new container from that image which runs the
+    executable that produces the output you are currently reading.
+ 4. The Docker daemon streamed that output to the Docker client, which sent it
+    to your terminal.
+
+- [done] Compose：`docker compose version`
+Docker Compose version v5.1.1
+
+## 容器操作紀錄
+- [done] nginx：`sudo docker run -d -p 8080:80 nginx` + `curl localhost:8080` 
+    -<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+html { color-scheme: light dark; }
+body { width: 35em; margin: 0 auto;
+font-family: Tahoma, Verdana, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, nginx is successfully installed and working.
+Further configuration is required for the web server, reverse proxy, 
+API gateway, load balancer, content cache, or other features.</p>
+
+<p>For online documentation and support please refer to
+<a href="https://nginx.org/">nginx.org</a>.<br/>
+To engage with the community please visit
+<a href="https://community.nginx.org/">community.nginx.org</a>.<br/>
+For enterprise grade support, professional services, additional 
+security features and capabilities please refer to
+<a href="https://f5.com/nginx">f5.com/nginx</a>.</p>
+
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+
+- [done] alpine：`sudo docker run -it --rm alpine /bin/sh` 內部命令與輸出
+- ls 
+bin    etc    lib    mnt    proc   run    srv    tmp    var
+dev    home   media  opt    root   sbin   sys    usr
+
+-uname -a
+Linux d7c316cba5e7 6.17.0-19-generic #19~24.04.2-Ubuntu SMP PREEMPT_DYNAMIC Fri Mar  6 23:08:46 UTC 2 x86_64 Linux
+
+- [ ] 映像列表：`sudo docker images` 輸出
+- i Info →   U  In Use
+IMAGE                ID             DISK USAGE   CONTENT SIZE   EXTRA
+alpine:latest        25109184c71b       13.1MB         3.95MB        
+hello-world:latest   452a468a4bf9       25.9kB         9.49kB    U   
+nginx:latest         7150b3a39203        240MB         65.8MB    U 
+
+## Snapshot 清單
+
+| 名稱 | 建立時機 | 用途說明 | 建立前驗證 |
+|---|---|---|---|
+| clean-baseline | 12/3/25 | clean start no mods | no errors or additional install |
+| docker-ready | 24/3/25 | setting up docker |docker --version and hello-world |
+
+## 故障演練三階段對照
+
+| 項目 | 故障前（基線） | 故障中（注入後） | 回復後 |
+|---|---|---|---|
+| docker.list 存在 | 是 | 否 | yes |
+| apt-cache policy 有候選版本 | 是 | 否 | yes |
+| docker 重裝可行 | 是 | 否 | yes |
+| hello-world 成功 | 是 | N/A | yes |
+| nginx curl 成功 | 是 | N/A | yes |
+
+## 手動修復 vs Snapshot 回復
+
+| 面向 | 手動修復 | Snapshot 回復 |
+|---|---|---|
+| 所需時間 | 30min - 1 hour | 1-5min (just started to use it) |
+| 適用情境 | when you know the problem | its like a checkpoint when you messed up something and too lazy to find the problem |
+| 風險 | potential human error especially beginner | nothing since its a checkpoint |
+
+## Snapshot 保留策略
+- 新增條件：adding more things to the system before changing it 100%
+- 保留上限：depending on the disk size since i only got 25 gb probably 1-5 snapshot
+- 刪除條件：delete snapshot when you feel like its not useful anymore, since you upgraded
+
+## 最小可重現命令鏈
+（列出讓他人能重現故障注入與回復驗證的命令序列）
+# 1. Check baseline
+ls /etc/apt/sources.list.d/docker.list
+apt-cache policy docker-ce
+sudo docker run hello-world
+sudo docker run -d -p 8080:80 nginx
+curl localhost:8080
+
+# 2. Inject failure
+sudo rm /etc/apt/sources.list.d/docker.list
+
+# 3. Verify failure
+ls /etc/apt/sources.list.d/docker.list
+apt-cache policy docker-ce
+sudo docker run hello-world    # should fail
+sudo docker run -d -p 8080:80 nginx   # should fail
+curl localhost:8080           # should fail
+
+# 4. Recover using snapshot
+# (In VMware GUI) Revert VM to snapshot 'docker-ready'
+
+# 5. Verify recovery
+ls /etc/apt/sources.list.d/docker.list
+apt-cache policy docker-ce
+sudo docker run hello-world    # should succeed
+sudo docker run -d -p 8080:80 nginx
+curl localhost:8080
+
+## 排錯紀錄
+- 症狀：downloading docker part 6,7
+- 診斷：human error alot of typo and lack on cmd knowledge
+- 修正：chatgpt,reset ubuntu(before knowing snapshot)
+- 驗證： hello-world
+
+## 設計決策
+Choice: Use VM snapshots instead of only manual repair
