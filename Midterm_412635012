@@ -1,6 +1,7 @@
 midterm_<412635012>/
 ├── README.md
 ├── network-diagram.png        # 或直接用 Mermaid 寫在 README 裡
+![image alt] (https://github.com/steffyn777-stack/412635012_TKUCVT/blob/7d15897a43ec67f31cdbd5f6aadb7ead098eee30/1779351378_mermaid-diagram%20(1).png)
 ├── screenshots/
 │   ├── ssh-proxyjump.png
 │   ├── docker-running.png
