@@ -1,0 +1,167 @@
+# W05｜把容器拆開來看：Namespace / Cgroups / Union FS / OCI
+
+## Docker 環境
+
+- Storage Driver：overlayfs
+- Cgroup Version：29.3.0
+- Cgroup Driver：systemd
+- Default Runtime：runc
+
+## Namespace 觀察
+
+### 六種 namespace 用途（用自己的話）
+- PID：Controls process visibility and container can only see its own processes
+- NET：Provides isolated network stack (IP, port, routing table)
+- MNT：Separates filesystem mount points
+- UTS：Separates hostname/domain name
+- IPC：Isolates inter-process communication
+- USER：Maps user/group IDs for privilege isolation
+
+### Host vs 容器 inode 對照
+Container PID used: 4938
+
+| Namespace | Container inode | Host inode (same PID) | Same or Different |
+|----------|----------------|------------------------|------------------|
+| PID      | 4026532229     | 4026532229             | Same |
+| NET      | 4026532231     | 4026532231             | Same |
+| MNT      | 4026532226     | 4026532226             | Same |
+| UTS      | 4026532227     | 4026532227             | Same |
+| IPC      | 4026532228     | 4026532228             | Same |
+| USER     | 4026531837     | 4026531837             | Same |
+
+### 容器內 `ps aux` 輸出
+Inside the container, ps aux shows only processes visible within the container's PID namespace.
+
+Even though the host system has hundreds of processes, the container only sees processes belonging to the same namespace context.
+
+This is why system processes like PID 1 exist inside the container, but host-level processes are mostly hidden.
+
+## Cgroups 實驗
+
+### 容器內讀到的限制
+- memory.max：134217728
+- cpu.max：100000 100000
+
+### Host 端對照（用 `docker inspect -f '{{.HostConfig.CgroupParent}}'` 動態取得路徑）
+- memory.max：max
+- cpu.max：max 100000
+- memory.current（執行時某一刻）：5476352
+
+### OOM 故障三階段
+| 項目 | 故障前 | 故障中（memory=32m + dd 200m）| 回復後（memory=256m）|
+|---	|---	|---				|---			|
+| 容器 exit code | - 	| 137			| 0			|
+| OOMKilled | - 	| "OOMKilled": true,	| "OOMKilled": false,）|
+| dmesg 關鍵字 | 無 OOM | （填入）		| 無 OOM 		|
+
+## Image 分層
+
+### `docker image inspect nginx:1.27-alpine` layer 數量
+steffyn@server-b:~$ docker image inspect nginx:1.27-alpine
+[
+    {
+        "Id": "sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10",
+        "RepoTags": [
+            "nginx:1.27-alpine"
+        ],
+        "RepoDigests": [
+            "nginx@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10"
+        ],
+        "Comment": "buildkit.dockerfile.v0",
+        "Created": "2025-04-16T14:50:31Z",
+        "Config": {
+            "ExposedPorts": {
+                "80/tcp": {}
+            },
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "NGINX_VERSION=1.27.5",
+                "PKG_RELEASE=1",
+                "DYNPKG_RELEASE=1",
+                "NJS_VERSION=0.8.10",
+                "NJS_RELEASE=1"
+            ],
+            "Entrypoint": [
+                "/docker-entrypoint.sh"
+            ],
+            "Cmd": [
+                "nginx",
+                "-g",
+                "daemon off;"
+            ],
+            "WorkingDir": "/",
+            "Labels": {
+                "maintainer": "NGINX Docker Maintainers <docker-maint@nginx.com>"
+            },
+            "StopSignal": "SIGQUIT"
+        },
+        "Architecture": "amd64",
+        "Os": "linux",
+        "Size": 20984244,
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:08000c18d16dadf9553d747a58cf44023423a9ab010aab96cf263d2216b8b350",
+                "sha256:d71eae0084c1aa823dd8fb2ecf8604d5c0f4911226c042bb1f8297e819f4b192",
+                "sha256:c56f134d380585340a68d0db2f2c170641a1c0ff72ccf2438cf2f693df756a85",
+                "sha256:e244aa659f612a80c40dd8645812301e3def6b15ec67b9e486ed2201172b51d1",
+                "sha256:b8d7d1d2263425d6044e059b2810017d062d659b9b755241f3747eda77726250",
+                "sha256:811a4dbbf4a5309e4390cf655c12db92e1a4304fb9d9731f83e7b02e95a617c6",
+                "sha256:947e805a4ac71f68e6703550c0b36c2aa2e554c4fa670ca2da6a25c6d7dccb66",
+                "sha256:0d853d50b128aa460b47e7121849463a14b18d4fd976caf5014744aae24d28aa"
+            ]
+        },
+        "Metadata": {
+            "LastTagTime": "2026-05-21T01:57:01.493242159Z"
+        },
+        "Descriptor": {
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "digest": "sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10",
+            "size": 10333
+        },
+        "Identity": {
+            "Pull": [
+                {
+                    "Repository": "docker.io/library/nginx"
+                }
+            ]
+        }
+    }
+]
+
+### 兩個同源 image 共享 layer 的證據
+（前幾個 sha256 是否相同？）
+no both of them do not share any layers
+
+### `docker diff` 輸出範例與解讀
+（貼上 A/C/D 實例並說明）
+C /root C : basically Changing the directory 
+A /root/.bash_history : Added file
+
+## OCI 呼叫鏈
+
+（用自己的話說明 dockerd → containerd → containerd-shim → runc 各自負責什麼，以及 OCI Runtime Spec `config.json` 裡哪些欄位對應到 namespace / cgroup 設定）
+
+dockerd = API + orchestration
+containerd = lifecycle manager
+shim = runtime keeper
+runc = actual container creator
+kernel = enforces namespaces + cgroups
+
+When containerd calls runc, it passes a file and define as:
+- namespaces
+- cgroups
+- process settings
+- mounts
+- capabilities
+
+## 排錯紀錄
+- 症狀：
+- 診斷：
+- 修正：
+- 驗證：
+
+## 想一想（回答 3 題）
+1. 容器裡的 PID 1 跟 host PID 1 是同一支 process 嗎？`kill -9 1`（在容器內）會發生什麼？
+2. 兩個容器都基於 `ubuntu:24.04`，磁碟空間是吃兩份還是共用？怎麼驗證？
+3. 如果 host 的 kernel 爆漏洞，容器還能稱為「隔離」嗎？這個限制跟 VM 差在哪？
