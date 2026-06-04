@@ -1,0 +1,126 @@
+# 期中實作 — <412635012> <劉管亮>
+
+## 1. 架構與 IP 表
+<Mermaid 圖 + 表格>
+
+## 2. Part A：VM 與網路
+<命令 + 關鍵輸出>
+命令: 	ip address 
+	ping 192.168.56.104
+	ping 192.168.56.103
+
+Bastion NAT: 10.0.2.15/24
+Bastion host only:192.168.56.104/24
+App host only:192.168.56.103/24
+
+
+
+## 3. Part B：金鑰、ufw、ProxyJump
+<防火牆規則表 + ssh app 成功證據>
+
+防火牆規則表
+ Bastion  (192.168.56.104)
+Source	Destination	Port	Protocol	Action
+Host	Bastion 	22	SSH		ALLOW
+Bastion App 		22	SSH		ALLOW
+
+App (192.168.56.103)
+Source		Destination	Port	Protocol	Action
+Bastion 	APP	 	22	SSH		ALLOW
+Other source	App 		22	SSH		DENY
+
+成功證據
+C:\Users\Liu>ssh app
+Welcome to Ubuntu 24.04.4 LTS (GNU/Linux 6.17.0-19-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+Expanded Security Maintenance for Applications is not enabled.
+
+1 update can be applied immediately.
+To see these additional updates run: apt list --upgradable
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+
+The list of available updates is more than a week old.
+To check for new updates run: sudo apt update
+Failed to connect to https://changelogs.ubuntu.com/meta-release-lts. Check your Internet connection or proxy settings
+
+Last login: Wed Apr 22 09:20:52 2026 from 192.168.56.104
+steffyn@server-b:~$
+
+## 4. Part C：Docker 服務
+<systemctl status docker + curl 輸出>
+systemctl status docker
+steffyn@server-b:~$ systemctl status docker
+● docker.service - Docker Application Container Engine
+     Loaded: loaded (/usr/lib/systemd/system/docker.service; enabled; preset: enabled)
+     Active: active (running) since Wed 2026-04-22 06:48:06 CST; 2h 49min ago
+TriggeredBy: ● docker.socket
+       Docs: https://docs.docker.com
+   Main PID: 1522 (dockerd)
+      Tasks: 28
+     Memory: 143.7M (peak: 144.9M)
+        CPU: 18.650s
+     CGroup: /system.slice/docker.service
+             ├─1522 /usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+             ├─5299 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 8080 -container-ip 172.17.0.2 -contain>
+             └─5305 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 8080 -container-ip 172.17.0.2 -container-po>
+
+Apr 22 06:48:06 server-b dockerd[1522]: time="2026-04-22T06:48:06.602025010+08:00" level=warning msg="error locating sa>
+Apr 22 06:48:06 server-b dockerd[1522]: time="2026-04-22T06:48:06.602781018+08:00" level=info msg="Loading containers: >
+Apr 22 06:48:06 server-b dockerd[1522]: time="2026-04-22T06:48:06.622000980+08:00" level=info msg="Docker daemon" commi>
+Apr 22 06:48:06 server-b dockerd[1522]: time="2026-04-22T06:48:06.622565971+08:00" level=info msg="Initializing buildki>
+Apr 22 06:48:06 server-b dockerd[1522]: time="2026-04-22T06:48:06.664818426+08:00" level=info msg="Completed buildkit i>
+Apr 22 06:48:06 server-b dockerd[1522]: time="2026-04-22T06:48:06.697010367+08:00" level=info msg="Daemon has completed>
+Apr 22 06:48:06 server-b dockerd[1522]: time="2026-04-22T06:48:06.697602158+08:00" level=info msg="API listen on /run/d>
+Apr 22 06:48:06 server-b systemd[1]: Started docker.service - Docker Application Container Engine.
+Apr 22 09:31:55 server-b dockerd[1522]: time="2026-04-22T09:31:55.993808924+08:00" level=info msg="No non-localhost DNS>
+Apr 22 09:31:56 server-b dockerd[1522]: time="2026-04-22T09:31:56.001903555+08:00" level=info msg="sbJoin: gwep4 ''->'4>
+lines 1-24/24 (END)
+
+curl
+steffyn@server-b:~$ curl -I http://192.168.56.103:8080
+HTTP/1.1 200 OK
+Server: nginx/1.29.7
+Date: Wed, 22 Apr 2026 01:36:55 GMT
+Content-Type: text/html
+Content-Length: 896
+Last-Modified: Tue, 24 Mar 2026 15:38:34 GMT
+Connection: keep-alive
+ETag: "69c2affa-380"
+Accept-Ranges: bytes
+
+
+## 5. Part D：故障演練
+### 故障 1：<F1/F2/F3 擇一> f1
+- 注入方式：sudo ip link set enp0s3 down
+- 故障前：ssh app works well still responding check ping 
+- 故障中：no response cannot crtl + c, cannot open at cmd ssh app and ping 
+- 回復後：sudo ip link set enp0s3 up , everything back to normal
+- 診斷推論： disable the network interface on the app, so no connection can be connected
+
+### 故障 2：<另一個> f3
+- 注入方式：sudo systemctl stop docker
+- 故障前：active (docker ps)
+- 故障中：no response on bastion but ssh app still active 
+- 回復後：sudo systemctl start docker
+- 診斷推論： SSH works, but Docker is stopped, so the application (nginx) cannot run
+
+
+### 症狀辨識（若選 F1+F2 必答）
+兩個都 timeout，我怎麼分？
+
+## 6. 反思（200 字）
+這次做完，對「分層隔離」或「timeout 不等於壞了」的理解有什麼改變？
+After completing this lab, I learned that layered isolation is an important concept in system design and security. It is related not only to troubleshooting but also to protecting systems from unauthorized access. In modern systems, a skilled attacker may still try to access or monitor a computer system, so layered isolation helps reduce this risk by separating different levels of access. For example, network layers and service layers are separated so that even if one part is affected, the entire system is not immediately compromised. This makes the system more secure and controlled.
+
+In addition, this midterm exercise helped me understand that a timeout does not always mean the system is broken or has an error. Before this, I often thought that a timeout indicated a failure or bug. However, I now understand that a timeout can happen for different reasons depending on the layer. It could be caused by network issues, firewall rules, or even stopped services.
+
+Overall, I learned that troubleshooting should not be based on guessing. Instead, it should follow a structured approach by checking each layer step by step. This makes problem-solving more accurate and efficient, thou sometimes I am quite lazy at analyzing the problem.
+
+## 7. Bonus（選做）
