@@ -1,7 +1,29 @@
  期末實作 — <412635012> <劉管亮>
 
 ## 1. 架構總覽
-<Mermaid 圖 + 一段話說明>
+```mermaid
+flowchart LR
+
+    A[Host Windows]
+    B[Bastion VM<br/>192.168.56.104]
+    C[App VM<br/>192.168.56.105]
+
+    A -->|ssh app<br/>ProxyJump| B
+    B -->|SSH 22| C
+
+    subgraph DockerCompose["Docker Compose"]
+        D[Flask App<br/>Port 8080<br/>Non-root User]
+        E[(PostgreSQL 16)]
+        F[(Named Volume<br/>db-data)]
+
+        D -->|DB_HOST=db| E
+        E --> F
+    end
+
+    C --> DockerCompose
+
+    A -->|curl :8080| D
+```
 
 ## 2. Part A：底座與基準點
 <ssh 證據 + 版本 + snapshot>
