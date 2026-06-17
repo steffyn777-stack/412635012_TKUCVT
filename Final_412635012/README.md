@@ -87,6 +87,7 @@ The cgroup value pids.max shows 200, which directly matches pids_limit: 200 in c
 
 
 ## 6. Part E：故障演練
+
 ### 故障 1：<F1–F4 擇一> F1
 - 注入方式：docker compose stop db
 - 故障前：app 與 db 均為 Up 且 healthy，執行 curl http://localhost:8080/healthz 回傳 200。
@@ -95,6 +96,13 @@ The cgroup value pids.max shows 200, which directly matches pids_limit: 200 in c
  等待資料庫恢復後，app healthcheck 再次成功，狀態恢復為 (healthy)，/healthz 回傳 200。
 - 診斷推論：此故障顯示 unhealthy 不代表容器已死亡。App 容器仍在執行，但因為依賴的資料庫服務不可用，所以健康檢查失敗。
 
+(before)
+![image alt](https://github.com/steffyn777-stack/412635012_TKUCVT/blob/1cbdf883589ac24baad60dba10d0ac63b5b5ff6b/Final_412635012/Screenshots/partE-F1%20Before.png)
+(during)
+![image alt](https://github.com/steffyn777-stack/412635012_TKUCVT/blob/1cbdf883589ac24baad60dba10d0ac63b5b5ff6b/Final_412635012/Screenshots/partE-F1%20During.png)
+(after)
+![image alt](https://github.com/steffyn777-stack/412635012_TKUCVT/blob/1cbdf883589ac24baad60dba10d0ac63b5b5ff6b/Final_412635012/Screenshots/partE-F1%20After.png)
+
 ### 故障 2：<另一個> F2
 - 注入方式：docker compose stop app
 - 故障前：app 與 db 正常運作，執行 curl http://localhost:8080/ 可以取得學號與資料庫時間。
@@ -102,6 +110,13 @@ The cgroup value pids.max shows 200, which directly matches pids_limit: 200 in c
 - 回復後：docker compose start app
 等待容器啟動完成後，curl http://localhost:8080/ 再次取得正常回應。
 - 診斷推論：此故障屬於容器層故障。因為 App Container 已停止，因此 TCP 連線無法建立，直接出現 connection refused。
+
+(before)
+![image alt](https://github.com/steffyn777-stack/412635012_TKUCVT/blob/1cbdf883589ac24baad60dba10d0ac63b5b5ff6b/Final_412635012/Screenshots/partE-F2%20Before.png)
+(during)
+![image alt](https://github.com/steffyn777-stack/412635012_TKUCVT/blob/1cbdf883589ac24baad60dba10d0ac63b5b5ff6b/Final_412635012/Screenshots/partE-F2%20During.png)
+(after)
+![image alt](https://github.com/steffyn777-stack/412635012_TKUCVT/blob/1cbdf883589ac24baad60dba10d0ac63b5b5ff6b/Final_412635012/Screenshots/partE-F2%20After.png)
 
 ### 三症狀分層表（必答）
 | 症狀 | 最可能的層 | 第一條驗證命令 |
