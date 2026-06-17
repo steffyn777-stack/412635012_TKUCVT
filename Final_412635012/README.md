@@ -52,11 +52,13 @@ This container creates a non-root user called appuser and runs the application u
 ![image alt](https://github.com/steffyn777-stack/412635012_TKUCVT/blob/19a3e8d47b46a7bec25fabe42ec0c7c114de9ef6/Final_412635012/Screenshots/partC-volume-3-stages.png)
 ![image alt](https://github.com/steffyn777-stack/412635012_TKUCVT/blob/19a3e8d47b46a7bec25fabe42ec0c7c114de9ef6/Final_412635012/Screenshots/partC-volume-3-stages_2.png)
 
-三段對照
-|階段	|	指令	|	SELECT * FROM exam 結果|
-|砍容器重建|	docker compose down && docker compose up -d	|	資料仍存在|
-|連 volume 一起砍|docker compose down -v && docker compose up -d|	資料消失|
-|重寫|	再 INSERT 一次|資料重新出現|
+### 三段對照
+
+| 階段 | 指令 | SELECT * FROM exam 結果 |
+|------|------|-------------------------|
+| 砍容器重建 | `docker compose down && docker compose up -d` | 資料仍存在 |
+| 連 volume 一起砍 | `docker compose down -v && docker compose up -d` | 資料消失（relation "exam" does not exist） |
+| 重寫 | 再次執行 `INSERT INTO exam VALUES ('412635012');` | 資料重新出現 |
 
 ### down vs down -v
 docker compose down only removes containers and networks. It does not remove named volumes, so the PostgreSQL data is still stored in the db-data volume.
@@ -96,9 +98,7 @@ docker compose stop db
 After stopping the database, the app container was still running, but it could no longer connect to the database. Because of this, the health check started to fail. After about 30 seconds, docker compose ps showed the app status as unhealthy, and curl http://localhost:8080/healthz returned HTTP 503.
 
 - 回復後：
-docker compose start db
-
-After restarting the database, the app was able to connect to the database again. The health check became successful, the status returned to healthy, and /healthz returned HTTP 200.
+docker compose start db. After restarting the database, the app was able to connect to the database again. The health check became successful, the status returned to healthy, and /healthz returned HTTP 200.
 
 - 診斷推論：
 This failure shows that an unhealthy container is not the same as a stopped container. The app container was still running, but the database service it depended on was unavailable, causing the health check to fail.
@@ -118,9 +118,7 @@ The app and database were running normally. Running curl http://localhost:8080/ 
 After stopping the app container, there was no service listening on port 8080. Running curl http://localhost:8080/ returned a connection refused error.
 
 - 回復後：
-docker compose start app
-
-After the container started again, the service returned to normal. Running curl http://localhost:8080/ returned a normal response.
+docker compose start app. After the container started again, the service returned to normal. Running curl http://localhost:8080/ returned a normal response.
 
 - 診斷推論：
 This failure happened at the container layer. Since the app container was stopped, a TCP connection could not be established, so a connection refused error was returned.
