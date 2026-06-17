@@ -40,9 +40,38 @@ Host app
 
 ## 3. Part B：Dockerfile 與快取
 <Dockerfile + 兩次 build 對照>
+### Dockerfile
 
-![image alt](https://github.com/steffyn777-stack/412635012_TKUCVT/blob/19a3e8d47b46a7bec25fabe42ec0c7c114de9ef6/Final_412635012/Screenshots/partB-build-first.png)
-![image alt](https://github.com/steffyn777-stack/412635012_TKUCVT/blob/19a3e8d47b46a7bec25fabe42ec0c7c114de9ef6/Final_412635012/Screenshots/partB-build-second-cache.png)
+```dockerfile
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+RUN useradd -m -u 1000 appuser
+
+COPY app.py .
+
+RUN chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 8080
+
+CMD ["python", "app.py"]
+```
+
+### Build cache evidence
+
+First build:
+
+![First build](Screenshots/partB-build-first.png)
+
+Second build after changing one line in `app.py`:
+
+![Second build cache](Screenshots/partB-build-second-cache.png)
 
 ### 為什麼聽 8080 不聽 80？
 This container creates a non-root user called appuser and runs the application using that user. In Linux, ports below 1024 are protected ports and usually require root permission. Since a non-root user cannot use port 80 directly, the application listens on port 8080 instead. This improves security and follows the principle of giving only the permissions that are needed.
