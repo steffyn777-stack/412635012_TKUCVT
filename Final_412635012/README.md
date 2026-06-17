@@ -78,7 +78,6 @@ This container creates a non-root user called appuser and runs the application u
 
 ## 4. Part C：Compose 與資料持久化
 <compose.yaml 重點 + 三段對照>
-## 4. Part C：Compose 與資料持久化
 
 ### compose.yaml 重點
 
