@@ -45,7 +45,7 @@ Host app
 ![image alt](https://github.com/steffyn777-stack/412635012_TKUCVT/blob/19a3e8d47b46a7bec25fabe42ec0c7c114de9ef6/Final_412635012/Screenshots/partB-build-second-cache.png)
 
 ### 為什麼聽 8080 不聽 80？
-本版本容器會建立非 root 使用者 appuser，並透過 USER appuser 切換成非 root 身分執行。依照 Linux 權限模型，1024 以下的 port 屬於 privileged port，非 root 使用者不能直接綁定 80。因此本服務改聽 8080，避免額外給予 CAP_NET_BIND_SERVICE，符合最小權限原則。
+This container creates a non-root user called appuser and runs the application using that user. In Linux, ports below 1024 are protected ports and usually require root permission. Since a non-root user cannot use port 80 directly, the application listens on port 8080 instead. This improves security and follows the principle of giving only the permissions that are needed.
 
 ## 4. Part C：Compose 與資料持久化
 <compose.yaml 重點 + 三段對照>
@@ -59,11 +59,11 @@ Host app
 |重寫|	再 INSERT 一次|資料重新出現|
 
 ### down vs down -v
-docker compose down 只會刪除 container 與 network，不會刪除 named volume，因此 PostgreSQL 的資料仍保留在 db-data 中。
+docker compose down only removes containers and networks. It does not remove named volumes, so the PostgreSQL data is still stored in the db-data volume.
 
-docker compose down -v 則會連同 Compose 管理的 named volume 一起刪除，因此資料庫資料會消失。
+docker compose down -v removes containers, networks, and named volumes. Because the db-data volume is deleted, all database data is lost.
 
-Named volume 的生命週期由 Docker 管理，但是否刪除取決於使用者執行的 Compose 指令；一般 down 不刪除 volume，down -v 才會刪除。
+The named volume is managed by Docker. However, whether it is deleted depends on the command used by the user. A normal docker compose down keeps the volume, while docker compose down -v removes it.
 
 ## 5. Part D：生產化加固
 <權限驗證輸出 + cgroup 讀值對照表>
@@ -89,24 +89,41 @@ The cgroup value pids.max shows 200, which directly matches pids_limit: 200 in c
 ## 6. Part E：故障演練
 
 ### 故障 1：<F1–F4 擇一> F1
-- 注入方式：docker compose stop db
-- 故障前：app 與 db 均為 Up 且 healthy，執行 curl http://localhost:8080/healthz 回傳 200。
-- 故障中：停止 db 後，app 容器仍然維持 Up 狀態，但因無法連線資料庫而導致 healthcheck 失敗。約 30 秒後，docker compose ps 顯示 app 狀態為 (unhealthy)，curl http://localhost:8080/healthz 回傳 HTTP 503。
-- 回復後：docker compose start db
- 等待資料庫恢復後，app healthcheck 再次成功，狀態恢復為 (healthy)，/healthz 回傳 200。
-- 診斷推論：此故障顯示 unhealthy 不代表容器已死亡。App 容器仍在執行，但因為依賴的資料庫服務不可用，所以健康檢查失敗。
+- 注入方式：
+docker compose stop db
+
+- 故障中：
+After stopping the database, the app container was still running, but it could no longer connect to the database. Because of this, the health check started to fail. After about 30 seconds, docker compose ps showed the app status as unhealthy, and curl http://localhost:8080/healthz returned HTTP 503.
+
+- 回復後：
+docker compose start db
+
+After restarting the database, the app was able to connect to the database again. The health check became successful, the status returned to healthy, and /healthz returned HTTP 200.
+
+- 診斷推論：
+This failure shows that an unhealthy container is not the same as a stopped container. The app container was still running, but the database service it depended on was unavailable, causing the health check to fail.
 
 | Before | During | After |
 |---------|---------|---------|
 | ![Before](Screenshots/partE-F1%20Before.png) | ![During](Screenshots/partE-F1%20During.png) | ![After](Screenshots/partE-F1%20After.png) |
 
 ### 故障 2：<另一個> F2
-- 注入方式：docker compose stop app
-- 故障前：app 與 db 正常運作，執行 curl http://localhost:8080/ 可以取得學號與資料庫時間。
-- 故障中：停止 app 容器後，Host 端已無服務監聽 8080 Port。執行 curl http://localhost:8080/ 出現 connection refused。
-- 回復後：docker compose start app
-等待容器啟動完成後，curl http://localhost:8080/ 再次取得正常回應。
-- 診斷推論：此故障屬於容器層故障。因為 App Container 已停止，因此 TCP 連線無法建立，直接出現 connection refused。
+-- 注入方式：
+docker compose stop app
+
+- 故障前：
+The app and database were running normally. Running curl http://localhost:8080/ returned my student ID and the database time.
+
+- 故障中：
+After stopping the app container, there was no service listening on port 8080. Running curl http://localhost:8080/ returned a connection refused error.
+
+- 回復後：
+docker compose start app
+
+After the container started again, the service returned to normal. Running curl http://localhost:8080/ returned a normal response.
+
+- 診斷推論：
+This failure happened at the container layer. Since the app container was stopped, a TCP connection could not be established, so a connection refused error was returned.
 
 | Before | During | After |
 |---------|---------|---------|
