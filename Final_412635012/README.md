@@ -27,6 +27,8 @@ flowchart LR
 
 ## 2. Part A：底座與基準點
 <ssh 證據 + 版本 + snapshot>
+https://github.com/steffyn777-stack/412635012_TKUCVT/blob/01a065137b18d8b3e84adda72ab895ab2d763841/Final_412635012/Screenshots/partA-SSH%20bastion%20to%20SSH%20app.png
+
 Host bastion
     HostName 192.168.56.104
     User steffyn
