@@ -96,18 +96,9 @@ The cgroup value pids.max shows 200, which directly matches pids_limit: 200 in c
  等待資料庫恢復後，app healthcheck 再次成功，狀態恢復為 (healthy)，/healthz 回傳 200。
 - 診斷推論：此故障顯示 unhealthy 不代表容器已死亡。App 容器仍在執行，但因為依賴的資料庫服務不可用，所以健康檢查失敗。
 
-<table>
-<tr>
-<th>Before</th>
-<th>During</th>
-<th>After</th>
-</tr>
-<tr>
-<td><img src="Screenshots/partE-F1%20Before.png" width="300"></td>
-<td><img src="Screenshots/partE-F1%20During.png" width="300"></td>
-<td><img src="Screenshots/partE-F1%20After.png" width="300"></td>
-</tr>
-</table>
+| Before | During | After |
+|---------|---------|---------|
+| ![Before](Screenshots/partE-F1%20Before.png) | ![During](Screenshots/partE-F1%20During.png) | ![After](Screenshots/partE-F1%20After.png) |
 
 ### 故障 2：<另一個> F2
 - 注入方式：docker compose stop app
