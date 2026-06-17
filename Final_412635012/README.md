@@ -78,8 +78,36 @@ This container creates a non-root user called appuser and runs the application u
 
 ## 4. Part C：Compose 與資料持久化
 <compose.yaml 重點 + 三段對照>
-![image alt](https://github.com/steffyn777-stack/412635012_TKUCVT/blob/19a3e8d47b46a7bec25fabe42ec0c7c114de9ef6/Final_412635012/Screenshots/partC-volume-3-stages.png)
-![image alt](https://github.com/steffyn777-stack/412635012_TKUCVT/blob/19a3e8d47b46a7bec25fabe42ec0c7c114de9ef6/Final_412635012/Screenshots/partC-volume-3-stages_2.png)
+## 4. Part C：Compose 與資料持久化
+
+### compose.yaml 重點
+
+```yaml
+services:
+  db:
+    image: postgres:16
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d $${POSTGRES_DB}"]
+
+  app:
+    build: ./app
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:
+```
+
+The PostgreSQL service stores data in the named volume `db-data`. The app service depends on the database health check and only starts after the database becomes healthy.
+
+![Volume Stage 1](Screenshots/partC-volume-3-stages.png)
+
+![Volume Stage 2](Screenshots/partC-volume-3-stages_2.png)
 
 ### 三段對照
 
