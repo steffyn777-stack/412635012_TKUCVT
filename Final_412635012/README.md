@@ -111,12 +111,9 @@ The cgroup value pids.max shows 200, which directly matches pids_limit: 200 in c
 等待容器啟動完成後，curl http://localhost:8080/ 再次取得正常回應。
 - 診斷推論：此故障屬於容器層故障。因為 App Container 已停止，因此 TCP 連線無法建立，直接出現 connection refused。
 
-(before)
-![image alt](https://github.com/steffyn777-stack/412635012_TKUCVT/blob/1cbdf883589ac24baad60dba10d0ac63b5b5ff6b/Final_412635012/Screenshots/partE-F2%20Before.png)
-(during)
-![image alt](https://github.com/steffyn777-stack/412635012_TKUCVT/blob/1cbdf883589ac24baad60dba10d0ac63b5b5ff6b/Final_412635012/Screenshots/partE-F2%20During.png)
-(after)
-![image alt](https://github.com/steffyn777-stack/412635012_TKUCVT/blob/1cbdf883589ac24baad60dba10d0ac63b5b5ff6b/Final_412635012/Screenshots/partE-F2%20After.png)
+| Before | During | After |
+|---------|---------|---------|
+| ![Before](Screenshots/partE-F2%20Before.png) | ![During](Screenshots/partE-F2%20During.png) | ![After](Screenshots/partE-F2%20After.png) |
 
 ### 三症狀分層表（必答）
 | 症狀 | 最可能的層 | 第一條驗證命令 |
